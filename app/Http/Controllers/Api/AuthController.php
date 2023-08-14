@@ -23,7 +23,7 @@ class AuthController extends Controller
         try {
             $validateUser = $request->validated();
 
-            if($validateUser->fails()){
+            if(isset($validateUser['errors'])){
                 return response()->json([
                     'status' => false,
                     'message' => 'validation error',
@@ -61,7 +61,7 @@ class AuthController extends Controller
         try {
             $validateUser = $request->validated();
 
-            if($validateUser->fails()){
+            if(isset($validateUser['errors'])){
                 return response()->json([
                     'status' => false,
                     'message' => 'validation error',
