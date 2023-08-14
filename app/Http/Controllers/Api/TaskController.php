@@ -17,7 +17,34 @@ class TaskController extends Controller
     {
         try {
             $userId = $request->user()->id;
-            $tasks = Task::where('user_id', $userId)->where('parent_id', 1)->get();
+            $tasks = Task::where('user_id', $userId)->where('parent_id', 1);
+
+            if ($request->has('status')) {
+                $tasks->where('status', $request->status);
+            }
+
+            if ($request->has('priority_from') && $request->has('priority_to')) {
+                $priorityFrom = $request->input('priority_from');
+                $priorityTo = $request->input('priority_to');
+
+                $tasks->whereBetween('priority', [$priorityFrom, $priorityTo]);
+            }
+
+            if ($request->has('title')) {
+                $tasks->where('title', 'like', '%' . $request->title . '%');
+            }
+
+            if ($request->has('sort')) {
+                $sortOrder = $request->input('sort', 'asc'); // default sorting order is ascending
+                $sortField = $request->input('sort_field', 'created_at'); // default sorting by created_at
+
+                if ($sortField == 'created_at' || $sortField == 'updated_at' || $sortField == 'priority') {
+                    $tasks->orderBy($sortField, $sortOrder);
+                }
+            }
+
+            $tasks->get();
+
             return response()->json([
                 'status' => true,
                 'data' => $tasks
