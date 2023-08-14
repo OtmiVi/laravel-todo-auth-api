@@ -28,7 +28,7 @@ class Task extends Model
      */
     public function childTasks(): HasMany
     {
-        return $this->hasMany(Task::class, 'parent_id');
+        return $this->hasMany(Task::class, 'parent_id')->with(['childTasks']);
     }
 
     /**

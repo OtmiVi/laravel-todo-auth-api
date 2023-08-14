@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TaskRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Task;
@@ -9,13 +10,18 @@ use App\Models\Task;
 class TaskController extends Controller
 {
     /**
+     * @param Request $request
      * @return JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $tasks = Task::with(['user', 'childTasks'])->get();
-            return response()->json($tasks);
+            $userId = $request->user()->id;
+            $tasks = Task::where('user_id', $userId)->where('parent_id', 1)->get();
+            return response()->json([
+                'status' => true,
+                'data' => $tasks
+            ], 201);
         } catch (\Throwable $th) {
             return response()->json([
                 'status' => false,
@@ -25,19 +31,33 @@ class TaskController extends Controller
     }
 
     /**
+     * @param Request $request
      * @param $id
      * @return JsonResponse
      */
-    public function show($id): JsonResponse
+    public function show(Request $request, $id): JsonResponse
     {
         try {
             $task = Task::with(['user', 'childTasks'])->find($id);
 
             if (!$task) {
-                return response()->json(['message' => 'Task not found'], 404);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Task not found'
+                ], 404);
             }
-
-            return response()->json($task);
+            $userId = $request->user()->id;
+            if($task->user_id == $userId){
+                return response()->json([
+                    'status' => true,
+                    'data' => $task
+                ], 201);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'message' => "You haven't permission"
+                ], 403);
+            }
         } catch (\Throwable $th) {
             return response()->json([
                 'status' => false,
@@ -47,24 +67,105 @@ class TaskController extends Controller
     }
 
     /**
-     * @param Request $request
+     * @param TaskRequest $request
      * @return JsonResponse
      */
-    public function store(Request $request): JsonResponse
+    public function store(TaskRequest $request): JsonResponse
     {
         try {
-            $data = $request->validate([
-                'status' => 'required|in:todo,done',
-                'priority' => 'required|in:1,2,3,4,5',
-                'title' => 'required|max:256',
-                'description' => 'nullable',
-                'parent_id' => 'nullable|exists:tasks,id',
-                'user_id' => 'required|exists:users,id',
-            ]);
 
-            $task = Task::create($data);
+            $data = $request->validated();
 
-            return response()->json($task, 201);
+            if(isset($validateUser['errors'])){
+                return response()->json([
+                    'status' => false,
+                    'message' => 'validation error',
+                    'errors' => $validateUser->errors()
+                ], 401);
+            }
+
+            $userId = $request->user()->id;
+            $data += [ 'user_id' => $userId ];
+
+            if( $data['parent_id'] != 1) {
+                $parent = Task::find($data['parent_id']);
+                if( $parent->user_id == $userId){
+                    $task = Task::create($data);
+                    return response()->json([
+                        'status' => true,
+                        'data' => $task
+                    ], 201);
+                }
+            } else {
+                $task = Task::create($data);
+                return response()->json([
+                    'status' => true,
+                    'data' => $task
+                ], 201);
+            }
+
+            return response()->json([
+                'status' => false,
+                'message' => "You haven't permission"
+            ], 403);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'message' => $th->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @param TaskRequest $request
+     * @param $id
+     * @return JsonResponse
+     */
+    public function update(TaskRequest $request, $id): JsonResponse
+    {
+        try {
+            $task = Task::find($id);
+
+            if (!$task) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Task not found'
+                ], 404);
+            }
+
+            $data = $request->validated();
+
+            if(isset($validateUser['errors'])){
+                return response()->json([
+                    'status' => false,
+                    'message' => 'validation error',
+                    'errors' => $validateUser->errors()
+                ], 401);
+            }
+
+            if( $data['parent_id'] != 1) {
+                $parent = Task::find($data['parent_id']);
+                $userId = $request->user()->id;
+                if( $parent->user_id == $userId){
+                    $task->update($data);
+                    return response()->json([
+                        'status' => true,
+                        'data' => $task
+                    ], 201);
+                }
+            } else {
+                $task->update($data);
+                return response()->json([
+                    'status' => true,
+                    'data' => $task
+                ], 201);
+            }
+
+            return response()->json([
+                'status' => false,
+                'message' => "You haven't permission"
+            ], 403);
+
         } catch (\Throwable $th) {
             return response()->json([
                 'status' => false,
@@ -78,51 +179,40 @@ class TaskController extends Controller
      * @param $id
      * @return JsonResponse
      */
-    public function update(Request $request, $id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
         try {
             $task = Task::find($id);
 
             if (!$task) {
-                return response()->json(['message' => 'Task not found'], 404);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Task not found'
+                ], 404);
             }
 
-            $data = $request->validate([
-                'status' => 'required|in:todo,done',
-                'priority' => 'required|in:1,2,3,4,5',
-                'title' => 'required|max:256',
-                'description' => 'nullable',
-                'parent_id' => 'nullable|exists:tasks,id',
-                'user_id' => 'required|exists:users,id',
-            ]);
+            if( $task->parentId != 1) {
+                $userId = $request->user()->id;
+                if( $task->user_id == $userId){
+                    $task->delete();
+                    return response()->json([
+                        'status' => true,
+                        'message' => 'Task deleted'
+                    ], 201);
+                }
+            } else {
+                $task->delete();
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Task deleted'
+                ], 201);
+            }
 
-            $task->update($data);
-
-            return response()->json($task);
-        } catch (\Throwable $th) {
             return response()->json([
                 'status' => false,
-                'message' => $th->getMessage()
-            ], 500);
-        }
-    }
+                'message' => "You haven't permission"
+            ], 403);
 
-    /**
-     * @param $id
-     * @return JsonResponse
-     */
-    public function destroy($id): JsonResponse
-    {
-        try {
-            $task = Task::find($id);
-
-            if (!$task) {
-                return response()->json(['message' => 'Task not found'], 404);
-            }
-
-            $task->delete();
-
-            return response()->json(['message' => 'Task deleted']);
         } catch (\Throwable $th) {
             return response()->json([
                 'status' => false,
