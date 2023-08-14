@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('task', TaskController::class);
+    Route::post('task/change/{id}', [TaskController::class, 'changeStatus']);
     Route::get('/user', function (Request $request) {
         return $request->user();
     });

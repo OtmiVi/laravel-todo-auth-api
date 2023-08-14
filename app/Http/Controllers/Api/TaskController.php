@@ -220,5 +220,45 @@ class TaskController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * @param Request $request
+     * @param $id
+     * @return JsonResponse
+     */
+    public function changeStatus(Request $request, $id): JsonResponse
+    {
+        try {
+            $task = Task::find($id);
+
+            if (!$task) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Task not found'
+                ], 404);
+            }
+
+            $userId = $request->user()->id;
+            if( $task->user_id == $userId){
+                $status = $task->status == 'todo' ? 'done' : 'todo';
+                $task->update(['status'=>$status] );
+                return response()->json([
+                    'status' => true,
+                    'data' => $task
+                ], 201);
+            }
+
+            return response()->json([
+                'status' => false,
+                'message' => "You haven't permission"
+            ], 403);
+
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'message' => $th->getMessage()
+            ], 500);
+        }
+    }
 }
 
