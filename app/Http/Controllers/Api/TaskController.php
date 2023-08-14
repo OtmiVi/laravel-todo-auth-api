@@ -7,7 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Task;
 
-class TaskController extends Controller
+class TaskController extends Controller implements TaskControllerInterface
 {
     /**
      * @param Request $request
