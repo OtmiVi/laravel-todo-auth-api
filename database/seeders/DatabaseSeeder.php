@@ -17,7 +17,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'done',
             'priority' => 1,
             'title' => 'Root Task',
-            'description' => 'Don\'t delete'
+            'description' => 'Don\'t delete',
+            'parent_id' => null,
+            'user_id' => null,
         ]);
     }
 }

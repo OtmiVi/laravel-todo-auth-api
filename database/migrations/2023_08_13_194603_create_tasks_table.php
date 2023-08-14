@@ -17,8 +17,8 @@ return new class extends Migration
             $table->enum('priority', [1, 2, 3, 4, 5])->default(1);
             $table->string('title', 256);
             $table->text('description')->nullable();
-            $table->foreignId('parent_id')->constrained('tasks');
-            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('parent_id')->nullable()->constrained('tasks');
+            $table->foreignId('user_id')->nullable()->constrained('users');
             $table->timestamps();
         });
     }
